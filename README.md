@@ -12,13 +12,10 @@
     - Kubeflow pipeline 
 
 
-
-
-
 # Install
 - Python 3.6+ 
 - Tensorflow 2 
-- TFX `pip install tfx`
+- TFX pipeline `pip install tfx`
 - Airflow ` pip install apache-airflow`
 - Kubeflow 
 - Apache Beam `pip install apache-beam`
@@ -52,7 +49,7 @@
 - TensorFlow Serving
 - Deploy to cloud 
 - Model optimization for deployment 
-    
+
 
 #### Beam & Airflow 
 #### Kubeflow
