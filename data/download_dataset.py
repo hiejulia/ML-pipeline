@@ -62,13 +62,13 @@ def check_execution_path():
         boolean -- returns False if execution path isn't the root,
             otherwise True
     """
-    file_name = "LICENSE"
-    if not os.path.exists(file_name):
-        logging.error(
-            "Don't execute the script from a sub-directory. "
-            "Switch to the root of the project folder"
-        )
-        return False
+    # file_name = "LICENSE"
+    # if not os.path.exists(file_name):
+    #     logging.error(
+    #         "Don't execute the script from a sub-directory. "
+    #         "Switch to the root of the project folder"
+    #     )
+    #     return False
     return True
 
 

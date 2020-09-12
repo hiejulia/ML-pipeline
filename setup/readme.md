@@ -2,5 +2,5 @@
 https://github.com/nielsborie/ml-docker
 
 # Dataset 
-- `python3 utils/download_dataset.py`
+- `python3 data/download_dataset.py`
 
