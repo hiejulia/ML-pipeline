@@ -20,4 +20,7 @@ https://github.com/nielsborie/ml-docker
     - all spark 
 
 
-    
+# Docker-compose
+- Redis
+- Jupyter notebook 
+- 
