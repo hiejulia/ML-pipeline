@@ -24,3 +24,11 @@ https://github.com/nielsborie/ml-docker
 - Redis
 - Jupyter notebook 
 - 
+
+# Cheatsheet
+- `docker run \
+  -v /Users/joshuacook/src:/home/jovyan/src \
+    -d -p 5000:8888 \
+    jupyter/demo
+273ff71c6755670e21accd197461dd4256fbeb129393d137733f36bcb5432a55`
+
