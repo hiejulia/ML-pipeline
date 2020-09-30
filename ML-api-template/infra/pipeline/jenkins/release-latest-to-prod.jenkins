@@ -1,0 +1,24 @@
+package infra.pipelines
+//noinspection GrPackage
+@Library('cicd-tools') _
+
+pipeline {
+    agent any
+    options {
+        timeout(time: 5, unit: 'MINUTES')
+    }
+    stages {
+        stage('tag latest docker image for production') {
+            steps {
+                script {
+                    cicdtools.promoteLatestToProduction(
+                            "main",
+                            "data",
+                            "example-ml-api",
+                            "example-ml-api"
+                    )
+                }
+            }
+        }
+    }
+}

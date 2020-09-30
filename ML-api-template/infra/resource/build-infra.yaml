@@ -1,0 +1,110 @@
+apiVersion: v1
+kind: Template
+message: >-
+  Example API build infrastructure as code into openshift.
+metadata:
+  name: example-ml-api-build-infra-template
+labels:
+  app: example-ml-api
+  template: example-ml-api-build-infra-template
+objects:
+- apiVersion: v1
+  kind: BuildConfig
+  metadata:
+    name: example-ml-api
+    labels:
+      build: example-ml-api
+  spec:
+    completionDeadlineSeconds: 1800
+    failedBuildsHistoryLimit: 5
+    output:
+      pushSecret:
+        name: ahtaaja
+      to:
+        kind: DockerImage
+        name: /public/example-ml-api:latest
+    resources:
+      limits:
+        cpu: "1"
+        memory: 1Gi
+    postCommit: {}
+    runPolicy: SerialLatestOnly
+    source:
+      git:
+        ref: master
+        uri: https://github.devcloud.elisa.fi/datalake/example-ml-api.git
+      sourceSecret:
+        name: git
+      type: Git
+    strategy:
+      dockerStrategy: {}
+      type: Docker
+    successfulBuildsHistoryLimit: 5
+    triggers:
+    - type: ConfigChange
+    - type: GitHub
+      github:
+        secret: "<secret you use in githubhook>"
+- apiVersion: v1
+  kind: Secret
+  metadata:
+    name: example-ml-api-credentials-all-envs
+  type: Opaque
+  stringData:
+    PROD_PASSWORD_DATABASE: "${PROD_DATABASE_PASSWORD}"
+    PROD_PASSWORD_READ: "${PROD_PASSWORD_READ}"
+    PROD_PASSWORD_UPDATE: "${PROD_PASSWORD_UPDATE}"
+    PROD_USERNAME_READ: "${PROD_USERNAME_READ}"
+    PROD_USERNAME_UPDATE: "${PROD_USERNAME_UPDATE}"
+    TEST_PASSWORD_DATABASE: "${TEST_DATABASE_PASSWORD}"
+    TEST_PASSWORD_READ: "${TEST_PASSWORD_READ}"
+    TEST_PASSWORD_UPDATE: "${TEST_PASSWORD_UPDATE}"
+    TEST_USERNAME_READ: "${TEST_USERNAME_READ}"
+    TEST_USERNAME_UPDATE: "${TEST_USERNAME_UPDATE}"
+parameters:
+  - name: TEST_DATABASE_PASSWORD
+    description: "password for test database"
+    generate: expression
+    from: "[a-zA-Z0-9]{37}"
+    required: true
+  - name: TEST_USERNAME_READ
+    description: "username for using API in test"
+    value: "example-ml-api-reader-test"
+    required: true
+  - name: TEST_PASSWORD_READ
+    description: "password for using API"
+    generate: expression
+    from: "[a-zA-Z0-9]{37}"
+    required: true
+  - name: TEST_USERNAME_UPDATE
+    description: "username for using API in prod"
+    value: "example-ml-api-updater-test"
+    required: true
+  - name: TEST_PASSWORD_UPDATE
+    description: "password for using API"
+    generate: expression
+    from: "[a-zA-Z0-9]{37}"
+    required: true
+  - name: PROD_DATABASE_PASSWORD
+    description: "password for prod database"
+    generate: expression
+    from: "[a-zA-Z0-9]{37}"
+    required: true
+  - name: PROD_USERNAME_READ
+    description: "username for using API in PROD"
+    value: "example-ml-api-reader"
+    required: true
+  - name: PROD_PASSWORD_READ
+    description: "password for using API"
+    generate: expression
+    from: "[a-zA-Z0-9]{37}"
+    required: true
+  - name: PROD_USERNAME_UPDATE
+    description: "username for using API in prod"
+    value: "example-ml-api-updater"
+    required: true
+  - name: PROD_PASSWORD_UPDATE
+    description: "password for using API"
+    generate: expression
+    from: "[a-zA-Z0-9]{37}"
+    required: true

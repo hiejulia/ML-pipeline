@@ -1,0 +1,89 @@
+pipeline {
+    agent any
+    options {
+        timestamps()
+        skipStagesAfterUnstable()
+    }
+    triggers {
+        githubPush()
+    }
+    environment {
+        ORGANISATION = '<your-organisation>'
+        APP_NAME = 'example-api'
+    }
+    stages {
+        stage ('ensure Docker image can be built') {
+            steps {
+                script {
+                    dockerBuild = docker.build(
+                        "${env.ORGANISATION}/example-api/public/example-api:${GIT_COMMIT}",
+                    )
+                }
+            }
+        }
+        stage ('publish Docker image') {
+            when {
+                branch 'master'
+            }
+            steps {
+                script {
+                    docker.withRegistry('https://', '') {
+                        dockerBuild.push()
+                        dockerBuild.push('latest')
+                    }
+                }
+            }
+        }
+        stage ('validate k8s manifests') {
+            agent {
+                docker {
+                    image '/kubernetes-core/public/k8s-actions'
+                }
+            }
+            steps {
+                script {
+                    sh "k8s.sh validate"
+                }
+            }
+        }
+        stage ('deploy to kubernetes: datalake-k8s-dev-tnl') {
+            when {
+                branch 'master'
+            }
+            agent {
+                docker {
+                    image 'akubernetes-core/public/k8s-actions'
+                }
+            }
+            steps {
+                withKubeConfig([credentialsId: 'datalake-k8s-dev-tnl']) {
+                    script {
+                        sh "k8s.sh deploy"
+                    }
+                }
+            }
+        }
+        stage ('deploy to kubernetes: datalake-k8s-prod-sti') {
+            when {
+                branch 'master'
+            }
+            agent {
+                docker {
+                    image 'kubernetes-core/public/k8s-actions'
+                }
+            }
+            steps {
+                withKubeConfig([credentialsId: 'datalake-k8s-prod-sti']) {
+                    script {
+                        sh "k8s.sh deploy"
+                    }
+                }
+            }
+        }
+    }
+    post {
+        always {
+            cleanWs()
+        }
+    }
+}

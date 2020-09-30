@@ -1,0 +1,16 @@
+apiVersion: v1
+kind: BuildConfig
+metadata:
+  name: example-ml-api-recreate-test
+  namespace: ml
+spec:
+  source:
+    git:
+      ref: master
+      uri: "https://github.com/hiejulia/ml-pipeline.git"
+    sourceSecret:
+      name: git
+  strategy:
+    jenkinsPipelineStrategy:
+      jenkinsfilePath: infra/pipelines/recreate-test-pipeline.jenkins
+    type: JenkinsPipeline

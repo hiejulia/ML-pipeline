@@ -1,0 +1,77 @@
+package infra.pipelines
+//noinspection GrPackage
+@Library('cicd-tools') _
+
+def templateUri = "infra/resources/application-template.yaml"
+def templateName = "example-ml-api-template"
+def envNamePrefix = 'EXAMPLE_API'
+def deployedApplication
+
+pipeline {
+    agent any
+    options {
+        timeout(time: 20, unit: 'MINUTES')
+    }
+    stages {
+        stage('update current template in clusters') {
+            steps {
+                script {
+                    openshift.withCluster("dc1") {
+                        openshift.withCredentials("dc1-app-creator-token") {
+                            openshift.withProject("datalake") {
+                                cicdtools.update_template(openshift, templateName, templateUri)
+                            }
+                        }
+                    }
+                    openshift.withCluster("dc2") {
+                        openshift.withCredentials("dc2-app-creator-token") {
+                            openshift.withProject("datalake") {
+                                cicdtools.update_template(openshift, templateName, templateUri)
+                            }
+                        }
+                    }
+                }
+            }
+        }
+        stage('apply infra changes to passive cluster') {
+            steps {
+                script {
+                    openshift.withCluster("dc1") {
+                        openshift.withCredentials("dc1-app-creator-token") {
+                            openshift.withProject("datalake") {
+                                applicationObjects = cicdtools.process_application_objects(
+                                        openshift,
+                                        templateName,
+                                        envNamePrefix,
+                                        'PROD'
+                                )
+                                deployedApplication = openshift.apply(applicationObjects)
+                                cicdtools.wait_for_deployment_to_complete(deployedApplication)
+                            }
+                        }
+                    }
+                }
+            }
+        }
+        stage('apply infra changes to active cluster') {
+            steps {
+                script {
+                    openshift.withCluster("dc2") {
+                        openshift.withCredentials("dc2-app-creator-token") {
+                            openshift.withProject("datalake") {
+                                applicationObjects = cicdtools.process_application_objects(
+                                        openshift,
+                                        templateName,
+                                        envNamePrefix,
+                                        'PROD'
+                                )
+                                deployedApplication = openshift.apply(applicationObjects)
+                                cicdtools.wait_for_deployment_to_complete(deployedApplication)
+                            }
+                        }
+                    }
+                }
+            }
+        }
+    }
+}

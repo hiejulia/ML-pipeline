@@ -1,0 +1,15 @@
+apiVersion: v1
+kind: BuildConfig
+metadata:
+  name: example-ml-api-recreate-build-infra
+spec:
+  source:
+    git:
+      ref: master
+      uri: "https://github.com/hiejulia/ml-pipeline.git"
+    sourceSecret:
+      name: git
+  strategy:
+    jenkinsPipelineStrategy:
+      jenkinsfilePath: infra/pipelines/recreate-build-pipeline.jenkins
+    type: JenkinsPipeline

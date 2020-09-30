@@ -1,0 +1,7 @@
+redis==3.4.1
+prometheus_client==0.8.0
+sanic==19.12.2
+sanic-openapi==0.6.0
+sanic-json-logging==3.0.0
+sanic-prometheus==0.2.0
+confluent_kafka==1.4.2

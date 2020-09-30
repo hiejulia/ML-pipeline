@@ -50,6 +50,8 @@
 - Deploy to cloud 
 - Model optimization for deployment 
 
+#### Kubenetes for deployment 
+
 
 #### Beam & Airflow 
 #### Kubeflow
@@ -57,5 +59,7 @@
 
 
 #### Model API 
-- API for serving ML model 
-
+- API endpoint for serving ML model 
+- Persistent datastore(redis) for store model prediction 
+- Kafka integration for push model prediction results to monitor topic 
+- Build docker 

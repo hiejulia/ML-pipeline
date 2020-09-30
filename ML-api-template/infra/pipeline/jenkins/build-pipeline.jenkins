@@ -1,0 +1,37 @@
+package infra.pipelines
+
+def templateUri = "infra/resources/build-infra.yaml"
+def templateName = "example-ml-api-build-infra-template"
+
+pipeline {
+    agent any
+    options {
+        timeout(time: 5, unit: 'MINUTES')
+    }
+    stages {
+        stage('cleanup existing pipeline') {
+            steps {
+                script {
+                    openshift.withCluster() {
+                        openshift.withProject() {
+                            openshift.selector("all", [ template : templateName ]).delete()
+                            // TODO handle case where we don't want to override existing credentials
+                        }
+                    }
+                }
+            }
+        }
+        stage('setup pipeline') {
+            steps {
+                script {
+                    openshift.withCluster() {
+                        openshift.withProject() {
+                            // this way we don't need to upload the template into project.
+                            openshift.newApp(templateUri)
+                        }
+                    }
+                }
+            }
+        }
+    }
+}

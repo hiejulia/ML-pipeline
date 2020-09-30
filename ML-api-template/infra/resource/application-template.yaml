@@ -1,0 +1,323 @@
+apiVersion: v1
+kind: Template
+message: >-
+  Example API IaaC.
+metadata:
+  name: example-ml-api-template
+  openshift.io/display-name: 'Example API'
+  openshift.io/documentation-url: 'Minimalistic swagger documentation in <host>/example-ml-api/v1/api-docs/'
+  openshift.io/provider-display-name: 'Datalake team'
+  openshift.io/support-url: 'https://mattermost.elisa.fi/elisa/channels/datalake-public'
+labels:
+  app: example-ml-api
+  template: example-ml-api-template
+objects:
+- apiVersion: v1
+  kind: PersistentVolumeClaim
+  metadata:
+    annotations:
+      volume.beta.kubernetes.io/storage-provisioner: kubernetes.io/cinder
+    name: example-ml-api-db
+  spec:
+    accessModes:
+      - ReadWriteOnce
+    resources:
+      requests:
+        storage: 4Gi
+    storageClassName: default
+- apiVersion: v1
+  stringData:
+    database-password: "${DATABASE_PASSWORD}"
+    read-username: "${REST_AUTH_READ_USERNAME}"
+    read-password: "${REST_AUTH_READ_PASSWORD}"
+    update-username: "${REST_AUTH_UPDATE_USERNAME}"
+    update-password: "${REST_AUTH_UPDATE_PASSWORD}"
+  kind: Secret
+  metadata:
+    name: example-ml-api-credentials
+    annotations:
+      template.openshift.io/expose-password: '{.data[''database-password'']}'
+  type: Opaque
+- apiVersion: v1
+  kind: ImageStream
+  metadata:
+    name: example-ml-api
+  spec:
+    dockerImageRepository: ahtaaja.saunalahti.fi/datalake/example-ml-api/public/example-ml-api
+    lookupPolicy:
+      local: false
+    tags:
+    - from:
+        kind: DockerImage
+        name: ahtaaja.saunalahti.fi/datalake/example-ml-api/public/example-ml-api:${TAG}
+      importPolicy: {}
+      name: ${TAG}
+      referencePolicy:
+        type: Source
+- apiVersion: v1
+  kind: DeploymentConfig
+  metadata:
+    annotations:
+      template.alpha.openshift.io/wait-for-ready: "true"
+    name: example-ml-api-db
+  spec:
+    replicas: 1
+    revisionHistoryLimit: 5
+    selector:
+      name: example-ml-api-db
+    strategy:
+      activeDeadlineSeconds: 21600
+      recreateParams:
+        timeoutSeconds: 600
+      resources: {}
+      type: Recreate
+    template:
+      metadata:
+        labels:
+          name: example-ml-api-db
+      spec:
+        containers:
+          - env:
+              - name: REDIS_PASSWORD
+                valueFrom:
+                  secretKeyRef:
+                    key: database-password
+                    name: example-ml-api-credentials
+            image: "openshift/redis:3.2"
+            imagePullPolicy: Always
+            command:
+              - run-redis
+            args:
+              - --maxmemory 4Gb
+              - --maxmemory-policy noeviction
+            name: example-ml-api-db
+            ports:
+              - containerPort: 6379
+                protocol: TCP
+            livenessProbe:
+              failureThreshold: 6
+              initialDelaySeconds: 10
+              periodSeconds: 10
+              successThreshold: 1
+              tcpSocket:
+                port: 6379
+              timeoutSeconds: 2
+            readinessProbe:
+              exec:
+                command:
+                  - /bin/sh
+                  - -i
+                  - -c
+                  - test "$(redis-cli -h 127.0.0.1 -a $REDIS_PASSWORD ping)" == "PONG"
+              failureThreshold: 12
+              initialDelaySeconds: 10
+              periodSeconds: 10
+              successThreshold: 1
+              timeoutSeconds: 5
+            resources:
+              limits:
+                cpu: "1"
+                memory: 8Gi
+            securityContext:
+              capabilities: {}
+              privileged: false
+            terminationMessagePath: /dev/termination-log
+            terminationMessagePolicy: File
+            volumeMounts:
+              - mountPath: /var/lib/redis/data
+                name: backup
+        dnsPolicy: ClusterFirst
+        restartPolicy: Always
+        schedulerName: default-scheduler
+        securityContext: {}
+        terminationGracePeriodSeconds: 30
+        tolerations:
+          - effect: NoSchedule
+            key: memsize
+            operator: Equal
+            value: large
+        volumes:
+          - name: backup
+            persistentVolumeClaim:
+              claimName: example-ml-api-db
+    test: false
+    triggers:
+      - imageChangeParams:
+          automatic: true
+          containerNames:
+            - example-ml-api-db
+          from:
+            kind: ImageStreamTag
+            name: redis:3.2
+            namespace: openshift
+        type: ImageChange
+      - type: ConfigChange
+- apiVersion: v1
+  kind: DeploymentConfig
+  metadata:
+    name: example-ml-api
+  spec:
+    replicas: 2
+    revisionHistoryLimit: 5
+    selector:
+      name: example-ml-api
+    strategy:
+      type: Rolling
+      rollingParams:
+        intervalSeconds: 1
+        maxSurge: 1
+        maxUnavailable: 1
+        timeoutSeconds: 600
+        updatePeriodSeconds: 1
+    template:
+      metadata:
+        labels:
+          name: example-ml-api
+      spec:
+        containers:
+        - env:
+          - name: API_ENVIRONMENT
+            value: "${TAG}"
+          - name: API_GATEWAY_HOST
+            value: "${API_GATEWAY_HOST}"
+          - name: EXAMPLE_API_DB_DATABASE_PASSWORD
+            valueFrom:
+              secretKeyRef:
+                key: database-password
+                name: example-ml-api-credentials
+          - name: BASIC_AUTH_READ_USERNAME
+            valueFrom:
+              secretKeyRef:
+                key: read-username
+                name: example-ml-api-credentials
+          - name: BASIC_AUTH_READ_PASSWORD
+            valueFrom:
+              secretKeyRef:
+                key: read-password
+                name: example-ml-api-credentials
+          - name: BASIC_AUTH_UPDATE_USERNAME
+            valueFrom:
+              secretKeyRef:
+                key: update-username
+                name: example-ml-api-credentials
+          - name: BASIC_AUTH_UPDATE_PASSWORD
+            valueFrom:
+              secretKeyRef:
+                key: update-password
+                name: example-ml-api-credentials
+          image: ahtaaja.saunalahti.fi/datalake/example-ml-api/public/example-ml-api:${TAG}
+          imagePullPolicy: Always
+          name: example-ml-api
+          resources:
+            limits:
+              cpu: 500m
+              memory: 1Gi
+          terminationMessagePath: /dev/termination-log
+          terminationMessagePolicy: File
+          livenessProbe:
+            failureThreshold: 5
+            successThreshold: 1
+            tcpSocket:
+              port: 5002
+            initialDelaySeconds: 10
+            periodSeconds: 20
+            timeoutSeconds: 20
+          readinessProbe:
+            failureThreshold: 5
+            httpGet:
+              path: /health/readiness
+              port: 5002
+              scheme: HTTP
+            initialDelaySeconds: 10
+            periodSeconds: 10
+            successThreshold: 1
+            timeoutSeconds: 10
+        dnsPolicy: ClusterFirst
+        restartPolicy: Always
+        schedulerName: default-scheduler
+        securityContext: {}
+        terminationGracePeriodSeconds: 30
+    test: false
+    triggers:
+    - type: ConfigChange
+    - type: ImageChange
+      imageChangeParams:
+        automatic: true
+        containerNames:
+        - example-ml-api
+        from:
+          kind: ImageStreamTag
+          name: example-ml-api:${TAG}
+          namespace: datalake
+- apiVersion: v1
+  kind: Service
+  metadata:
+    annotations:
+      template.openshift.io/expose-uri: redis://{.spec.clusterIP}:{.spec.ports[?(.name=="redis")].port}
+    name: example-ml-api-db
+  spec:
+    ports:
+      - name: redis
+        port: 6379
+        protocol: TCP
+        targetPort: 6379
+    selector:
+      deploymentconfig: example-ml-api-db
+    sessionAffinity: None
+    type: ClusterIP
+- apiVersion: v1
+  kind: Service
+  metadata:
+    name: example-ml-api
+  spec:
+    ports:
+    - name: web
+      port: 80
+      protocol: TCP
+      targetPort: 5002
+    selector:
+      deploymentconfig: example-ml-api
+    sessionAffinity: None
+    type: ClusterIP
+  status:
+    loadBalancer: {}
+- apiVersion: v1
+  kind: Route
+  metadata:
+    labels:
+      net: int
+    name: example-ml-api
+  spec:
+    port:
+      targetPort: web
+    tls:
+      termination: edge
+    to:
+      kind: Service
+      name: example-ml-api
+      weight: 100
+    wildcardPolicy: None
+parameters:
+  - name: TAG
+    description: "Define the tag that the application is following"
+    value: "latest"
+    required: true
+  - name: DATABASE_PASSWORD
+    description: "password for database"
+    required: true
+  - name: REST_AUTH_READ_USERNAME
+    description: "username for using API"
+    required: true
+  - name: REST_AUTH_READ_PASSWORD
+    description: "password for using API"
+    required: true
+  - name: REST_AUTH_UPDATE_USERNAME
+    description: "username for updating API"
+    required: true
+  - name: REST_AUTH_UPDATE_PASSWORD
+    description: "password for updating API"
+    required: true
+  - name: API_GATEWAY_HOST
+    description: "hostname for api gateway from which this API is served. Used in interactive documentation configuration"
+    value: "localhost:5002"
+    required: true
