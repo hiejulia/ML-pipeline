@@ -1,0 +1,34 @@
+def templateUri = "oc/build-infra.yaml"
+def templateName = "credit-risk-api-build-infra-template"
+
+pipeline {
+    agent any
+    options {
+        timeout(time: 5, unit: 'MINUTES')
+    }
+    stages {
+        stage('cleanup existing pipeline') {
+            steps {
+                script {
+                    openshift.logLevel(1)
+                    openshift.withCluster() {
+                        openshift.withProject() {
+                             result = openshift.selector("all", [ template : templateName ]).delete()
+                        }
+                    }
+                }
+            }
+        }
+        stage('setup pipeline') {
+            steps {
+                script {
+                    openshift.withCluster() {
+                        openshift.withProject() {
+                            openshift.newApp(templateUri)
+                        }
+                    }
+                }
+            }
+        }
+    }
+}
