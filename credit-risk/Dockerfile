@@ -1,4 +1,4 @@
-FROM ahtaaja.saunalahti.fi/sdc/base/public/alpine:latest
+FROM FROM alpine:3.7
 
 LABEL maintainer="hien@nguyen"
 
